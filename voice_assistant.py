@@ -6,43 +6,57 @@ This project is a basic voice assistant developed using Python.
 It listens to voice commands and performs simple tasks such as:
 - Greeting the user
 - Telling current time and date
-- Searching information on the web
+- Searching the web
 - Exiting on command
 
 Technologies Used:
 - Python
 - SpeechRecognition
 - pyttsx3
-- Webbrowser module
-
-This project demonstrates basic concepts of speech recognition,
-task automation, and user interaction.
+- datetime
+- webbrowser
 """
+
 import speech_recognition as sr
 import pyttsx3
 import datetime
 import webbrowser
+import sys
 
-# Initialize voice engine
-engine = pyttsx3.init()
+# Initialize text-to-speech engine (safe setup)
+try:
+    engine = pyttsx3.init(driverName='sapi5')
+    voices = engine.getProperty('voices')
+    engine.setProperty('voice', voices[1].id)
+    engine.setProperty('rate', 170)
+except:
+    engine = None
 
 def speak(text):
-    engine.say(text)
-    engine.runAndWait()
+    print("Assistant:", text)
+    if engine:
+        try:
+            engine.say(text)
+            engine.runAndWait()
+        except:
+            pass
 
 def listen():
     r = sr.Recognizer()
     with sr.Microphone() as source:
         print("Listening...")
-        r.pause_threshold = 1
+        r.adjust_for_ambient_noise(source, duration=1)
         audio = r.listen(source)
 
     try:
         command = r.recognize_google(audio)
         print("You said:", command)
         return command.lower()
-    except:
-        speak("Sorry, I did not understand.")
+    except sr.UnknownValueError:
+        speak("Sorry, I did not catch that.")
+        return ""
+    except sr.RequestError:
+        speak("Speech service is unavailable.")
         return ""
 
 # Greeting
@@ -51,22 +65,27 @@ speak("Hello! I am your voice assistant.")
 while True:
     command = listen()
 
+    if command == "":
+        continue
+
     if "hello" in command:
         speak("Hello! How can I help you?")
 
     elif "time" in command:
-        time = datetime.datetime.now().strftime("%H:%M:%S")
-        speak(f"The time is {time}")
+        current_time = datetime.datetime.now().strftime("%H:%M:%S")
+        speak(f"The time is {current_time}")
 
     elif "date" in command:
-        date = datetime.datetime.now().strftime("%d %B %Y")
-        speak(f"Today's date is {date}")
+        current_date = datetime.datetime.now().strftime("%d %B %Y")
+        speak(f"Today's date is {current_date}")
 
     elif "search" in command:
         speak("What should I search for?")
         query = listen()
-        webbrowser.open(f"https://www.google.com/search?q={query}")
+        if query != "":
+            webbrowser.open("https://www.google.com/search?q=" + query)
+            speak("Here are the search results.")
 
-    elif "exit" in command or "stop" in command:
+    elif "exit" in command or "stop" in command or "quit" in command:
         speak("Goodbye! Have a nice day.")
-        break
+        sys.exit()
